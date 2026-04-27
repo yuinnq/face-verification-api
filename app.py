@@ -92,16 +92,18 @@ def health():
     ])
     return jsonify({"status": "ok", "dataset_count": dataset_count})
 
+
 @app.route("/upload", methods=["POST"])
 def upload():
     data = request.get_json(silent=True)
     if not data or "image" not in data or "filename" not in data:
         return jsonify({"error": "Missing image or filename"}), 400
-    
+
     save_path = os.path.join(DATASET_FOLDER, data["filename"])
     if decode_base64_image(data["image"], save_path):
         return jsonify({"status": "saved", "filename": data["filename"]})
     return jsonify({"error": "Failed to save image"}), 500
+
 
 @app.route("/scan", methods=["POST"])
 def scan():
@@ -120,6 +122,29 @@ def scan():
             "message": "No face detected. Please upload a clear, well-lit photo facing the camera."
         })
 
+    # If dataset_image is provided directly, compare just those two
+    if "dataset_image" in data:
+        dataset_path = os.path.join(TEMP_FOLDER, "dataset.jpg")
+        if not decode_base64_image(data["dataset_image"], dataset_path):
+            return jsonify({"error": "Invalid dataset image"}), 400
+
+        result = verify_face(live_path, dataset_path)
+        if result["match"]:
+            return jsonify({
+                "status": "matched",
+                "matched_with": result["name"],
+                "filename": result["filename"],
+                "distance": result["distance"],
+                "confidence": result["confidence"],
+            })
+        else:
+            return jsonify({
+                "status": "no_match",
+                "closest": result["name"],
+                "closest_confidence": result["confidence"],
+            })
+
+    # Otherwise fall back to dataset folder
     dataset_files = [
         os.path.join(DATASET_FOLDER, f)
         for f in os.listdir(DATASET_FOLDER)
@@ -128,8 +153,6 @@ def scan():
 
     if not dataset_files:
         return jsonify({"status": "error", "message": "Dataset folder is empty."}), 500
-
-    logger.info(f"Comparing against {len(dataset_files)} dataset image(s)...")
 
     results = [verify_face(live_path, path) for path in dataset_files]
     matched = [r for r in results if r["match"]]
@@ -142,7 +165,6 @@ def scan():
             "filename": best["filename"],
             "distance": best["distance"],
             "confidence": best["confidence"],
-            "all_matches": len(matched),
         })
     else:
         valid_results = [r for r in results if r["distance"] is not None]
@@ -155,4 +177,4 @@ def scan():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
