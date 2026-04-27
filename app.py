@@ -92,6 +92,16 @@ def health():
     ])
     return jsonify({"status": "ok", "dataset_count": dataset_count})
 
+@app.route("/upload", methods=["POST"])
+def upload():
+    data = request.get_json(silent=True)
+    if not data or "image" not in data or "filename" not in data:
+        return jsonify({"error": "Missing image or filename"}), 400
+    
+    save_path = os.path.join(DATASET_FOLDER, data["filename"])
+    if decode_base64_image(data["image"], save_path):
+        return jsonify({"status": "saved", "filename": data["filename"]})
+    return jsonify({"error": "Failed to save image"}), 500
 
 @app.route("/scan", methods=["POST"])
 def scan():
