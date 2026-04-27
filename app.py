@@ -14,7 +14,7 @@ TEMP_FOLDER = "temp"
 os.makedirs(TEMP_FOLDER, exist_ok=True)
 os.makedirs(DATASET_FOLDER, exist_ok=True)
 
-MODEL_NAME = "Facenet512"
+MODEL_NAME = "Facenet"
 DISTANCE_METRIC = "cosine"
 MATCH_THRESHOLD = 0.25
 
